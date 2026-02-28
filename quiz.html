@@ -1,0 +1,388 @@
+
+lib/
+ ├── main.dart
+ ├── screens/
+ │    ├── home_screen.dart
+ │    ├── quiz_library_screen.dart
+ │    ├── quiz_play_screen.dart
+ │    ├── create_quiz_screen.dart
+ │    ├── profile_screen.dart
+ │    └── multiplayer_screen.dart
+ ├── models/
+ │    ├── question.dart
+ │    └── quiz.dart
+ ├── data/
+ │    └── sample_quizzes.dart
+ └── services/
+      ├── quiz_service.dart
+      └── storage_service.dart
+import 'package:flutter/material.dart';
+import 'screens/home_screen.dart';
+
+void main() {
+  runApp(const QuizCraftApp());
+}
+
+class QuizCraftApp extends StatelessWidget {
+  const QuizCraftApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'QuizCraft',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import 'quiz_library_screen.dart';
+import 'create_quiz_screen.dart';
+import 'profile_screen.dart';
+import 'multiplayer_screen.dart';
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("QuizCraft")),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            MenuButton("📚 Quiz Library", () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const QuizLibraryScreen(),
+              ));
+            }),
+            MenuButton("🛠 Create Quiz", () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const CreateQuizScreen(),
+              ));
+            }),
+            MenuButton("🎮 Multiplayer", () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const MultiplayerScreen(),
+              ));
+            }),
+            MenuButton("👤 Profile", () {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => const ProfileScreen(),
+              ));
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MenuButton extends StatelessWidget {
+  final String text;
+  final void Function() onPressed;
+
+  const MenuButton(this.text, this.onPressed, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 60)),
+        onPressed: onPressed,
+        child: Text(text, style: const TextStyle(fontSize: 18)),
+      ),
+    );
+  }
+}
+import 'question.dart';
+
+class Quiz {
+  final String title;
+  final String category;
+  final List<Question> questions;
+
+  Quiz({
+    required this.title,
+    required this.category,
+    required this.questions,
+  });
+}
+class Question {
+  final String text;
+  final List<String> options;
+  final int correctIndex;
+  final String? explanation;
+
+  Question({
+    required this.text,
+    required this.options,
+    required this.correctIndex,
+    this.explanation,
+  });
+}
+import '../models/quiz.dart';
+import '../models/question.dart';
+
+final sampleQuizzes = [
+  Quiz(
+    title: "General Knowledge",
+    category: "General",
+    questions: [
+      Question(
+        text: "What is the capital of France?",
+        options: ["Berlin", "Paris", "London", "Rome"],
+        correctIndex: 1,
+        explanation: "Paris is the capital city of France.",
+      ),
+      Question(
+        text: "Which planet is known as the Red Planet?",
+        options: ["Mars", "Venus", "Jupiter", "Saturn"],
+        correctIndex: 0,
+      ),
+    ],
+  )
+];
+import 'package:flutter/material.dart';
+import '../data/sample_quizzes.dart';
+import 'quiz_play_screen.dart';
+
+class QuizLibraryScreen extends StatelessWidget {
+  const QuizLibraryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Quiz Library")),
+      body: ListView.builder(
+        itemCount: sampleQuizzes.length,
+        itemBuilder: (_, i) {
+          final quiz = sampleQuizzes[i];
+          return ListTile(
+            title: Text(quiz.title),
+            subtitle: Text(quiz.category),
+            trailing: const Icon(Icons.play_arrow),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => QuizPlayScreen(quiz: quiz)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import '../models/quiz.dart';
+
+class QuizPlayScreen extends StatefulWidget {
+  final Quiz quiz;
+
+  const QuizPlayScreen({super.key, required this.quiz});
+
+  @override
+  State<QuizPlayScreen> createState() => _QuizPlayScreenState();
+}
+
+class _QuizPlayScreenState extends State<QuizPlayScreen> {
+  int index = 0;
+  int score = 0;
+  bool answered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = widget.quiz.questions[index];
+
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.quiz.title)),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Text(q.text, style: const TextStyle(fontSize: 22)),
+            const SizedBox(height: 20),
+            ...List.generate(q.options.length, (i) {
+              return ElevatedButton(
+                onPressed: answered
+                    ? null
+                    : () {
+                        setState(() {
+                          answered = true;
+                          if (i == q.correctIndex) score++;
+                        });
+                      },
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: answered
+                        ? (i == q.correctIndex
+                            ? Colors.green
+                            : Colors.red)
+                        : null),
+                child: Text(q.options[i]),
+              );
+            }),
+            const Spacer(),
+            ElevatedButton(
+              onPressed: () {
+                if (index < widget.quiz.questions.length - 1) {
+                  setState(() {
+                    index++;
+                    answered = false;
+                  });
+                } else {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text("Quiz Complete!"),
+                      content: Text("Your score: $score"),
+                    ),
+                  );
+                }
+              },
+              child: const Text("Next"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+import '../models/question.dart';
+import '../models/quiz.dart';
+import '../data/sample_quizzes.dart';
+
+class CreateQuizScreen extends StatefulWidget {
+  const CreateQuizScreen({super.key});
+
+  @override
+  State<CreateQuizScreen> createState() => _CreateQuizScreenState();
+}
+
+class _CreateQuizScreenState extends State<CreateQuizScreen> {
+  final titleCtrl = TextEditingController();
+  final categoryCtrl = TextEditingController();
+  List<Question> questions = [];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Create Quiz")),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Quiz Title")),
+            TextField(controller: categoryCtrl, decoration: const InputDecoration(labelText: "Category")),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              child: const Text("Add Question"),
+              onPressed: () async {
+                final q = await _createQuestionDialog(context);
+                if (q != null) setState(() => questions.add(q));
+              },
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView(
+                children: questions.map((q) => ListTile(title: Text(q.text))).toList(),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                sampleQuizzes.add(
+                  Quiz(
+                    title: titleCtrl.text,
+                    category: categoryCtrl.text,
+                    questions: questions,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text("Save Quiz"),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Question?> _createQuestionDialog(BuildContext ctx) async {
+    final textCtrl = TextEditingController();
+    final optCtrls = List.generate(4, (_) => TextEditingController());
+    int correct = 0;
+
+    return showDialog<Question>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text("New Question"),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(controller: textCtrl, decoration: const InputDecoration(labelText: "Question")),
+              for (int i = 0; i < 4; i++)
+                TextField(controller: optCtrls[i], decoration: InputDecoration(labelText: "Option ${i+1}")),
+              DropdownButton<int>(
+                value: correct,
+                items: List.generate(4, (i) => DropdownMenuItem(value: i, child: Text("Correct: Option ${i+1}"))),
+                onChanged: (v) => correct = v!,
+              )
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(child: const Text("Cancel"), onPressed: () => Navigator.pop(ctx)),
+          TextButton(
+            child: const Text("Save"),
+            onPressed: () {
+              Navigator.pop(
+                ctx,
+                Question(
+                  text: textCtrl.text,
+                  options: optCtrls.map((c) => c.text).toList(),
+                  correctIndex: correct,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+
+class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Profile")),
+      body: const Center(
+        child: Text("User stats, XP, achievements go here!", style: TextStyle(fontSize: 20)),
+      ),
+    );
+  }
+}
+import 'package:flutter/material.dart';
+
+class MultiplayerScreen extends StatelessWidget {
+  const MultiplayerScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Multiplayer")),
+      body: const Center(
+        child: Text("Real-time multiplayer coming soon!", style: TextStyle(fontSize: 20)),
+      ),
+    );
+  }
+}
